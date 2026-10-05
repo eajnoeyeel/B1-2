@@ -6,6 +6,7 @@ import SeriesPoster from '@/components/SeriesPoster.jsx'
 import StatusBadge from '@/components/StatusBadge.jsx'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/hooks/useAuth'
 import { useSeries } from '@/hooks/useSeries'
 import { useToast } from '@/hooks/useToast'
 import { DAY_LABELS, GENRES, ORIENTATIONS } from '@/lib/series'
@@ -18,6 +19,7 @@ function formatDate(value) {
 export default function SeriesDetailPage() {
   const { id } = useParams()
   const { data: series, loading, error, reload } = useSeries(id)
+  const { user } = useAuth()
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -83,15 +85,18 @@ export default function SeriesDetailPage() {
                 {series.updated_at !== series.created_at && `, ${formatDate(series.updated_at)} 수정`}
               </p>
 
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Button asChild variant="outline" size="lg">
-                  <Link to={`/series/${id}/edit`}>
-                    <Pencil data-icon="inline-start" />
-                    수정
-                  </Link>
-                </Button>
-                <DeleteSeriesDialog seriesTitle={series.title} onDelete={handleDelete} />
-              </div>
+              {/* 수정/삭제는 등록한 본인에게만 보인다. (DB의 RLS 정책도 본인만 허용) */}
+              {user && series.user_id === user.id && (
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <Button asChild variant="outline" size="lg">
+                    <Link to={`/series/${id}/edit`}>
+                      <Pencil data-icon="inline-start" />
+                      수정
+                    </Link>
+                  </Button>
+                  <DeleteSeriesDialog seriesTitle={series.title} onDelete={handleDelete} />
+                </div>
+              )}
             </div>
           </article>
         )}

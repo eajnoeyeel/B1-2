@@ -1,62 +1,29 @@
-import { CircleAlert, LoaderCircle } from 'lucide-react'
-import { useState } from 'react'
+import { CircleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Textarea } from '@/components/ui/textarea'
+import { useFormState } from '@/hooks/useFormState'
 import { DAY_LABELS, EMPTY_SERIES, GENRES, LIMITS, ORIENTATIONS, STATUSES, toSeriesPayload, validateSeries } from '@/lib/series'
 import FormField from './FormField.jsx'
 import SegmentedControl from './SegmentedControl.jsx'
 import SeriesPoster from './SeriesPoster.jsx'
 import StatusBadge from './StatusBadge.jsx'
+import SubmitButton from './SubmitButton.jsx'
 
 const STATUS_OPTIONS = Object.entries(STATUSES)
 const ORIENTATION_OPTIONS = Object.entries(ORIENTATIONS)
-
-// 에러가 있는 필드에 aria 속성을 붙여 스크린리더가 에러 문구를 함께 읽게 한다.
-function errorProps(name, errors) {
-  return errors[name] ? { 'aria-invalid': true, 'aria-describedby': `${name}-error` } : {}
-}
+const toCount = (value) => (value === '' ? '' : Number(value))
 
 // 등록/수정 공용 폼. 저장 후 이동은 onSubmit을 넘긴 페이지가 정한다.
-// onSubmit이 throw하면 실패 메시지를 폼 상단에 보여주고 입력값은 그대로 둔다.
+// onSubmit이 throw하면 실패 메시지를 폼 상단에 보여주고 입력값은 그대로 둔다(useFormState).
 export default function SeriesForm({ initialValues = EMPTY_SERIES, submitLabel, onSubmit, onCancel }) {
-  const [values, setValues] = useState(initialValues)
-  const [errors, setErrors] = useState({})
-  const [submitting, setSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState(null)
+  const { values, errors, submitting, submitError, setField, submit, fieldProps } = useFormState(initialValues)
 
-  function setField(name, value) {
-    setValues((prev) => ({ ...prev, [name]: value }))
-    // 사용자가 고치기 시작하면 그 필드의 에러는 지운다.
-    if (errors[name]) setErrors(({ [name]: _removed, ...rest }) => rest)
-  }
-
-  function handleChange(event) {
-    const { name, value } = event.target
-    setField(name, name === 'episode_count' ? (value === '' ? '' : Number(value)) : value)
-  }
-
-  async function handleSubmit(event) {
+  function handleSubmit(event) {
     event.preventDefault()
-    const nextErrors = validateSeries(values)
-    setErrors(nextErrors)
-    if (Object.keys(nextErrors).length > 0) {
-      document.getElementById(Object.keys(nextErrors)[0])?.focus()
-      return
-    }
-
-    setSubmitting(true)
-    setSubmitError(null)
-    try {
-      await onSubmit(toSeriesPayload(values))
-    } catch (error) {
-      setSubmitError(error.message)
-      setSubmitting(false)
-    }
+    submit(validateSeries, (formValues) => onSubmit(toSeriesPayload(formValues)))
   }
-
-  const field = (name) => ({ id: name, name, value: values[name], onChange: handleChange, ...errorProps(name, errors) })
 
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_17rem]">
@@ -69,16 +36,16 @@ export default function SeriesForm({ initialValues = EMPTY_SERIES, submitLabel, 
         )}
 
         <FormField label="작품 제목" htmlFor="title" error={errors.title}>
-          <Input {...field('title')} maxLength={LIMITS.title} placeholder="예: 마지막 마녀" className="h-10" />
+          <Input {...fieldProps('title')} maxLength={LIMITS.title} placeholder="예: 마지막 마녀" className="h-10" />
         </FormField>
 
         <FormField label="크리에이터" htmlFor="creator" error={errors.creator}>
-          <Input {...field('creator')} maxLength={LIMITS.creator} placeholder="예: lyra" className="h-10" />
+          <Input {...fieldProps('creator')} maxLength={LIMITS.creator} placeholder="예: lyra" className="h-10" />
         </FormField>
 
         <div className="grid gap-6 sm:grid-cols-2">
           <FormField label="장르" htmlFor="genre" error={errors.genre}>
-            <NativeSelect {...field('genre')} className="w-full [&_select]:h-10">
+            <NativeSelect {...fieldProps('genre')} className="w-full [&_select]:h-10">
               {Object.entries(GENRES).map(([key, { label }]) => (
                 <NativeSelectOption key={key} value={key}>
                   {label}
@@ -115,7 +82,7 @@ export default function SeriesForm({ initialValues = EMPTY_SERIES, submitLabel, 
             error={errors.release_day}
             hint={values.status === 'ongoing' ? '새 회차가 올라오는 요일이에요.' : '연재 중이 아니면 비워 둬도 돼요.'}
           >
-            <NativeSelect {...field('release_day')} className="w-full [&_select]:h-10">
+            <NativeSelect {...fieldProps('release_day')} className="w-full [&_select]:h-10">
               <NativeSelectOption value="">정해지지 않음</NativeSelectOption>
               {Object.entries(DAY_LABELS).map(([key, label]) => (
                 <NativeSelectOption key={key} value={key}>
@@ -127,7 +94,7 @@ export default function SeriesForm({ initialValues = EMPTY_SERIES, submitLabel, 
         </div>
 
         <FormField label="공개된 회차 수" htmlFor="episode_count" error={errors.episode_count}>
-          <Input {...field('episode_count')} type="number" inputMode="numeric" min={0} max={LIMITS.episodes} className="h-10 w-32" />
+          <Input {...fieldProps('episode_count', toCount)} type="number" inputMode="numeric" min={0} max={LIMITS.episodes} className="h-10 w-32" />
         </FormField>
 
         <FormField
@@ -136,7 +103,7 @@ export default function SeriesForm({ initialValues = EMPTY_SERIES, submitLabel, 
           error={errors.cover_url}
           hint="비워 두면 장르 색과 제목으로 포스터를 만들어요."
         >
-          <Input {...field('cover_url')} type="url" placeholder="https://" className="h-10" />
+          <Input {...fieldProps('cover_url')} type="url" placeholder="https://" className="h-10" />
         </FormField>
 
         <FormField
@@ -146,7 +113,7 @@ export default function SeriesForm({ initialValues = EMPTY_SERIES, submitLabel, 
           hint={`${values.description.length} / ${LIMITS.description}자`}
         >
           <Textarea
-            {...field('description')}
+            {...fieldProps('description')}
             rows={6}
             maxLength={LIMITS.description}
             placeholder="어떤 이야기인지 두세 문장으로 소개해 주세요."
@@ -154,10 +121,9 @@ export default function SeriesForm({ initialValues = EMPTY_SERIES, submitLabel, 
         </FormField>
 
         <div className="flex flex-wrap gap-2 pt-2">
-          <Button type="submit" size="lg" disabled={submitting} className="min-w-28">
-            {submitting && <LoaderCircle className="animate-spin" data-icon="inline-start" />}
-            {submitting ? '저장 중…' : submitLabel}
-          </Button>
+          <SubmitButton submitting={submitting} pendingLabel="저장 중…">
+            {submitLabel}
+          </SubmitButton>
           {onCancel && (
             <Button type="button" variant="ghost" size="lg" onClick={onCancel} disabled={submitting}>
               취소

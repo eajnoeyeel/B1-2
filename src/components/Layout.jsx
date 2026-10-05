@@ -2,6 +2,7 @@ import { Compass, House, Plus } from 'lucide-react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import AuthMenu from './AuthMenu.jsx'
 
 const NAV = [
   { to: '/', label: '홈', icon: House, end: true },
@@ -27,26 +28,32 @@ export default function Layout() {
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
           <Logo />
-          <nav aria-label="주요 메뉴" className="hidden items-center gap-1 md:flex">
-            {NAV.slice(0, 2).map(({ to, label, end }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                className={({ isActive }) =>
-                  cn('rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground', isActive && 'font-semibold text-foreground')
-                }
-              >
-                {label}
-              </NavLink>
-            ))}
-            <Button asChild className="ml-2">
-              <Link to="/series/new">
-                <Plus data-icon="inline-start" />
-                작품 등록
-              </Link>
-            </Button>
-          </nav>
+          <div className="flex items-center gap-2">
+            <nav aria-label="주요 메뉴" className="hidden items-center gap-1 md:flex">
+              {NAV.slice(0, 2).map(({ to, label, end }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={end}
+                  className={({ isActive }) =>
+                    cn(
+                      'rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground',
+                      isActive && 'font-semibold text-foreground',
+                    )
+                  }
+                >
+                  {label}
+                </NavLink>
+              ))}
+              <Button asChild className="ml-2">
+                <Link to="/series/new">
+                  <Plus data-icon="inline-start" />
+                  작품 등록
+                </Link>
+              </Button>
+            </nav>
+            <AuthMenu />
+          </div>
         </div>
       </header>
 
@@ -55,7 +62,10 @@ export default function Layout() {
       </main>
 
       {/* 모바일: 하단 탭 바 */}
-      <nav aria-label="주요 메뉴" className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden">
+      <nav
+        aria-label="주요 메뉴"
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+      >
         <ul className="grid grid-cols-3">
           {NAV.map(({ to, label, icon: Icon, end }) => (
             <li key={to}>

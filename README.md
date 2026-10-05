@@ -6,7 +6,9 @@ Codyssey B1-2 과제("버튼 누르면 화면이 스르륵 바뀌는 요즘 웹�
 - **배포 URL:** <https://daumhwa.vercel.app>
 - **소스 코드:** <https://github.com/eajnoeyeel/B1-2>
 
-> 구상 중인 숏드라마 플랫폼(Creator → Universe → Series → Season → Episode)에서 핵심 단위인 **Series** 하나만 잘라 CRUD로 구현했습니다. 과제의 "단일 핵심 데이터" 조건에 맞추기 위해 영상 업로드, 회차(Episode), 로그인은 범위에서 뺐습니다.
+> 구상 중인 숏드라마 플랫폼(Creator → Universe → Series → Season → Episode)에서 핵심 단위인 **Series** 하나만 잘라 CRUD로 구현했습니다. 과제의 "단일 핵심 데이터" 조건에 맞추기 위해 영상 업로드와 회차(Episode)는 범위에서 뺐습니다.
+>
+> 작품 조회는 누구나 할 수 있고, **등록은 회원가입·로그인 후**, **수정·삭제는 등록한 본인만** 할 수 있습니다. 샘플 작품 8개는 소유자가 없는 읽기 전용입니다. 수정·삭제는 가입 후 직접 등록한 작품으로 확인해 주세요.
 
 ## 기술 스택
 
@@ -16,7 +18,7 @@ Codyssey B1-2 과제("버튼 누르면 화면이 스르륵 바뀌는 요즘 웹�
 | 빌드 | Vite 8 |
 | 라우팅 | React Router 7 (`BrowserRouter`, 중첩 라우트 + `Outlet`, `useSearchParams`) |
 | 스타일 | Tailwind CSS 4, [shadcn/ui](https://ui.shadcn.com) (Radix 기반), lucide 아이콘 |
-| 백엔드 | Supabase (PostgreSQL + 자동 REST API, `@supabase/supabase-js`) |
+| 백엔드 | Supabase (PostgreSQL + 자동 REST API, Supabase Auth, `@supabase/supabase-js`) |
 | 품질 | oxlint, `node:test` (폼 검증 로직 단위 테스트) |
 | 배포 | Vercel |
 
@@ -38,9 +40,10 @@ npm run build          # dist/ 에 배포용 빌드
 ### Supabase 준비
 
 1. Supabase에서 프로젝트를 만든다.
-2. SQL Editor에서 [`supabase/schema.sql`](supabase/schema.sql)을 실행한다. (`series` 테이블, `updated_at` 트리거, RLS 정책)
+2. SQL Editor에서 [`supabase/schema.sql`](supabase/schema.sql)을 실행한다. (`series` 테이블, `updated_at` 트리거, 소유자 기준 RLS 정책)
 3. (선택) [`supabase/seed.sql`](supabase/seed.sql)로 샘플 작품 8개를 넣는다.
-4. Project Settings → API에서 Project URL과 anon key를 복사해 `.env`에 넣는다.
+4. Authentication → Sign In / Providers → Email에서 **Confirm email을 끈다.** Supabase 기본 메일 서버는 프로젝트 팀원 주소로만 메일을 보내므로, 켜 두면 다른 사람은 인증 메일을 받지 못해 가입을 끝낼 수 없다. (켜 둔 경우 앱은 "메일함을 확인해 주세요" 안내를 보여준다.)
+5. Project Settings → API에서 Project URL과 anon key를 복사해 `.env`에 넣는다.
 
 | 변수 | 설명 |
 | --- | --- |
@@ -54,6 +57,7 @@ npm run build          # dist/ 에 배포용 빌드
 
 | 필드 | 내용 | 검증 (프런트 + DB 제약) |
 | --- | --- | --- |
+| `user_id` | 등록한 사용자 | 등록 시 로그인한 사용자 id가 DB 기본값(`auth.uid()`)으로 들어감 |
 | `title` | 작품 제목 | 필수, 40자 이하 |
 | `creator` | 크리에이터 | 필수, 30자 이하 |
 | `genre` | 로맨스·판타지·회귀·스릴러·호러·미스터리·액션·SF·코미디 | 목록 안의 값 |
@@ -72,10 +76,14 @@ npm run build          # dist/ 에 배포용 빌드
 | --- | --- | --- |
 | `/` | `HomePage` | 오늘 요일에 새 회차가 올라오는 작품, 새로 등록된 작품, 완결 작품 |
 | `/series` | `ExplorePage` | 전체 작품 + 장르/연재 상태 필터, 검색, 정렬 |
-| `/series/new` | `SeriesNewPage` | 등록 폼 (포스터 실시간 미리보기) |
-| `/series/:id` | `SeriesDetailPage` | 상세 + 수정/삭제 |
-| `/series/:id/edit` | `SeriesEditPage` | 수정 폼 |
+| `/series/:id` | `SeriesDetailPage` | 상세 (본인 작품이면 수정/삭제 버튼) |
+| `/series/new` 🔒 | `SeriesNewPage` | 등록 폼 (포스터 실시간 미리보기, 크리에이터 이름 미리 채움) |
+| `/series/:id/edit` 🔒 | `SeriesEditPage` | 수정 폼 (본인 작품이 아니면 안내) |
+| `/login` | `LoginPage` | 로그인 |
+| `/signup` | `SignupPage` | 회원가입 |
 | `*` | `NotFoundPage` | 404 |
+
+🔒 표시는 `RequireAuth`로 감싼 **보호 라우트**입니다. 로그인하지 않은 채 들어오면 `/login`으로 보내고, 로그인하거나 가입하면 원래 가려던 주소로 돌려보냅니다.
 
 모든 라우트는 `Layout`(상단 헤더, 모바일에서는 하단 탭 바)의 `<Outlet />` 안에서 렌더링됩니다.
 `vercel.json`에서 모든 경로를 `index.html`로 rewrite하므로, 배포 URL에서 `/series/3` 같은 주소로 바로 접속하거나 새로고침해도 페이지가 열립니다.
@@ -89,9 +97,11 @@ src/
 ├── index.css               # Tailwind + 테마 토큰
 ├── pages/                  # 라우트 단위 화면: 데이터를 가져오고 이동 흐름을 결정
 │   ├── HomePage.jsx        ExplorePage.jsx      NotFoundPage.jsx
-│   └── SeriesDetailPage.jsx  SeriesNewPage.jsx  SeriesEditPage.jsx
+│   ├── SeriesDetailPage.jsx  SeriesNewPage.jsx  SeriesEditPage.jsx
+│   └── LoginPage.jsx       SignupPage.jsx
 ├── components/             # 직접 만든 재사용 컴포넌트: props만 보고 화면을 그림
-│   ├── Layout.jsx          ToastProvider.jsx
+│   ├── Layout.jsx          ToastProvider.jsx    AuthProvider.jsx
+│   ├── RequireAuth.jsx     AuthMenu.jsx         AuthCard.jsx        SubmitButton.jsx
 │   ├── DataState.jsx       Loading.jsx          ErrorState.jsx      EmptyState.jsx
 │   ├── SeriesPoster.jsx    SeriesCard.jsx       SeriesGrid.jsx      SeriesRail.jsx
 │   ├── SeriesForm.jsx      FormField.jsx        SegmentedControl.jsx
@@ -100,12 +110,17 @@ src/
 ├── hooks/
 │   ├── useAsync.js         # 비동기 요청 → { data, loading, error, reload }
 │   ├── useSeries.js        # useSeriesList(), useSeries(id)
+│   ├── useFormState.js     # 폼 3개(작품·로그인·가입)가 함께 쓰는 입력/검증/제출 상태
+│   ├── useAuth.js          # 로그인 상태 Context 접근
 │   └── useToast.js         # 알림 Context 접근
 └── lib/                    # React와 무관한 순수 로직
     ├── supabase.js         # Supabase 클라이언트
     ├── seriesApi.js        # CRUD 함수
     ├── series.js           # 장르·상태 상수, 검증(validateSeries), 폼↔DB 변환
     ├── series.test.js
+    ├── auth.js             # 로그인/가입 검증, Supabase Auth 에러 한국어 변환
+    ├── auth.test.js
+    ├── authApi.js          # signIn / signUp / signOut
     └── utils.js            # shadcn/ui 클래스 병합 헬퍼(cn)
 supabase/
 ├── schema.sql              # 테이블, 트리거, RLS
@@ -122,7 +137,7 @@ supabase/
   - `SeriesPoster`는 홈 레일, 탐색 그리드, 상세, 폼 미리보기에서 같은 컴포넌트를 씁니다. 글자 크기를 포스터 너비(container query 단위 `cqi`) 기준으로 잡아서, 크기가 달라도 비율이 유지됩니다.
   - `SegmentedControl`은 폼의 연재 상태·화면 방향 선택과 탐색 화면의 연재 상태 필터에 함께 쓰입니다.
 - **같은 화면 패턴은 한 번만 만든다:** 로딩(`Loading`), 에러(`ErrorState`), 빈 상태(`EmptyState`)를 각각 컴포넌트로 만들고, 셋 중 무엇을 보여줄지 정하는 순서(로딩 → 에러 → 빈 → 성공)는 `DataState` 한 곳에 모았습니다. 홈, 탐색, 상세, 수정 네 화면이 모두 `DataState`를 쓰므로 상태 표현이 같습니다.
-- **shadcn/ui와의 관계:** `components/ui/`는 shadcn이 생성한 기본 부품(버튼, 입력창, 확인 창 등)입니다. 과제의 재사용 컴포넌트 요건은 그 위에 직접 만든 아래 16개로 충족합니다.
+- **shadcn/ui와의 관계:** `components/ui/`는 shadcn이 생성한 기본 부품(버튼, 입력창, 확인 창 등)입니다. 과제의 재사용 컴포넌트 요건은 그 위에 직접 만든 컴포넌트로 충족합니다. 주요 컴포넌트는 아래와 같습니다.
 
 | 컴포넌트 | 주요 props | 달라지는 것 |
 | --- | --- | --- |
@@ -142,6 +157,9 @@ supabase/
 | `EmptyState` | `message`, `description`, `children` | 문구, 행동 버튼 |
 | `ToastProvider` | `children` | 알림 영역 제공 |
 | `Layout` | (라우트 `Outlet`) | 현재 경로에 따른 메뉴 강조 |
+| `SubmitButton` | `submitting`, `pendingLabel` | 제출 중이면 비활성 + 스피너 + 진행 문구 |
+| `AuthCard` | `title`, `description`, `error`, `footer` | 로그인/가입 화면 틀, 서버 에러 표시 |
+| `RequireAuth` | (보호할 라우트들의 `Outlet`) | 로그인 여부에 따라 통과 또는 `/login`으로 이동 |
 
 ### 2. props와 state, 상태를 둔 위치
 
@@ -150,7 +168,8 @@ supabase/
 
 | 상태 | 위치 | 이유 |
 | --- | --- | --- |
-| 폼 입력값, 필드 에러, 제출 중, 제출 실패 | `SeriesForm` (`useState`) | 폼 안에서만 쓰입니다. 미리보기 `SeriesPoster`에는 `values`를 props로 내려줍니다(하향). |
+| 폼 입력값, 필드 에러, 제출 중, 제출 실패 | 각 폼 (`useFormState` 커스텀 훅) | 폼 안에서만 쓰입니다. 작품·로그인·가입 폼이 같은 훅을 씁니다. 미리보기 `SeriesPoster`에는 `values`를 props로 내려줍니다(하향). |
+| 로그인 사용자 | `AuthProvider` (Context, 전역) | 헤더, 보호 라우트, 상세(본인 작품 여부), 등록(크리에이터 이름) 등 여러 곳에서 씁니다. |
 | 장르, 연재 상태, 검색어, 정렬 | `ExplorePage` (URL 쿼리, `useSearchParams`) | `GenreFilter`와 `SegmentedControl`(입력), `SeriesGrid`(결과)가 함께 써야 해서 공통 부모로 끌어올렸습니다(상향). 자식은 `onChange` 콜백으로 부모 상태를 바꿉니다. URL에 두었기 때문에 상세에서 뒤로 가도 필터가 유지되고, 링크로 공유할 수 있습니다. |
 | 목록/상세 데이터, 로딩, 에러 | `useAsync` 훅 (각 페이지) | 페이지마다 독립적으로 요청합니다. |
 | 삭제 확인 창 열림, 삭제 중, 삭제 실패 | `DeleteSeriesDialog` | 확인 창 안에서만 쓰입니다. |
@@ -223,15 +242,33 @@ useEffect(() => {
 | 저장/수정/삭제 성공 | `toast` (Context) | 하단 알림 표시 → 3초 뒤 사라짐 |
 | 삭제 클릭 | `open` (`DeleteSeriesDialog`) | 확인 창 표시 |
 | 다시 시도 클릭 | `reloadKey` (`useAsync`) | 에러 → 로딩 → 결과 |
+| 로그인 / 로그아웃 | `session` (`AuthProvider`) | 헤더의 로그인 버튼 ↔ 이름 + 로그아웃, 상세의 수정/삭제 버튼 표시 여부 |
 
 ## 보너스 과제
 
-- **전역 상태 (Context):** 알림(toast)을 `ToastProvider` + `useToast()`로 관리합니다. 등록 화면에서 띄운 알림이 상세 페이지로 이동한 뒤에도 보입니다.
-- **성능 최적화 (메모이제이션):**
-  - `useMemo`: 탐색 화면의 필터·정렬 결과와 장르별 개수. 관련 없는 상태가 바뀔 때는 다시 계산하지 않습니다.
-  - `useCallback`: `useSeries`의 요청 함수(`id`가 같으면 effect를 다시 실행하지 않음), `ToastProvider`의 `show`.
-  - `React.memo`: `SeriesCard`. 필터를 바꿔도 props가 그대로인 카드는 다시 렌더링하지 않습니다.
-- **인증:** 적용하지 않았습니다. RLS를 끄지 않고 "anon 역할 전체 허용" 정책을 명시해 두었으므로, 인증을 붙일 때는 정책을 `auth.uid() = user_id` 조건으로 바꾸면 됩니다. 지금은 URL을 아는 누구나 작품을 수정·삭제할 수 있다는 한계가 있습니다.
+세 가지 모두 적용했습니다.
+
+### 전역 상태 (Context)
+
+- **로그인 상태 `AuthProvider`:** 앱 시작 시 `supabase.auth.getSession()`으로 저장된 세션을 읽고, `onAuthStateChange`로 로그인·로그아웃·토큰 갱신을 구독합니다. 상태는 `undefined`(확인 중) / `null`(로그아웃) / 세션 객체 세 가지입니다. 확인 중일 때 보호 라우트가 성급하게 로그인 화면으로 보내지 않도록 구분했습니다.
+- **알림 `ToastProvider`:** 등록 화면에서 띄운 알림이 상세 페이지로 이동한 뒤에도 보입니다.
+
+### 성능 최적화 (메모이제이션)
+
+- `useMemo`: 탐색 화면의 필터·정렬 결과와 장르별 개수, Context에 넘기는 값 객체(`AuthProvider`, `ToastProvider`). 값이 그대로면 구독하는 컴포넌트가 다시 렌더링되지 않습니다.
+- `useCallback`: `useSeries`의 요청 함수(`id`가 같으면 effect를 다시 실행하지 않음), `ToastProvider`의 `show`.
+- `React.memo`: `SeriesCard`. 필터를 바꿔도 props가 그대로인 카드는 다시 렌더링하지 않습니다.
+
+### 인증 (Supabase Auth + 보호 라우트)
+
+| 구분 | 내용 |
+| --- | --- |
+| 방식 | 이메일 + 비밀번호. 가입 때 입력한 크리에이터 이름은 `user_metadata.display_name`에 저장 |
+| 세션 유지 | supabase-js가 세션을 브라우저에 저장하므로 새로고침해도 로그인이 유지됨 |
+| 보호 라우트 | `RequireAuth`가 `/series/new`, `/series/:id/edit`을 감쌈. 비로그인 → `/login` (돌아올 주소를 `state.from`으로 전달) |
+| 화면 권한 | 상세의 수정/삭제 버튼은 본인 작품에만 표시, 남의 작품 수정 주소로 들어오면 "내가 등록한 작품만 수정할 수 있어요" |
+| DB 권한 (RLS) | 조회는 모두, 등록은 `auth.uid() = user_id`, 수정·삭제는 본인 행만. 화면을 우회해 API를 직접 호출해도 막힘 |
+| 폼 UX | 이메일 형식, 비밀번호 6자 이상, 비밀번호 확인 일치 검증 / 제출 중 표시 / Supabase 에러를 한국어로 변환("이메일 또는 비밀번호가 맞지 않아요.") |
 
 ## UI/UX에서 신경 쓴 점
 
@@ -253,4 +290,11 @@ useEffect(() => {
 - DB 권한을 잠시 막은 상태에서 수정/삭제 → 폼 상단과 확인 창에 실패 원인 표시
 - 잘못된 Supabase 주소로 실행 → 스켈레톤 → 에러 상태 + 다시 시도 버튼
 - 없는 경로(`/nope`) → 404 페이지
-- 모바일 너비(390px)에서 홈·탐색·등록 화면
+- 모바일 너비(390px)에서 홈·탐색·등록·상세 화면
+- 인증:
+  - 비로그인으로 `/series/new`, `/series/:id/edit` 접근 → 로그인 화면으로 이동
+  - 가입 검증(빈 값, 비밀번호 불일치) → 가입 후 원래 가려던 등록 화면으로 복귀, 크리에이터 이름 미리 채움
+  - 틀린 비밀번호 → "이메일 또는 비밀번호가 맞지 않아요."
+  - 새로고침 후에도 로그인 유지, 로그아웃 → 수정/삭제 버튼 사라짐
+  - 다른 계정 B로 A의 작품 상세 → 버튼 없음, 수정 주소 → 권한 안내
+  - DB에서 B의 권한으로 A의 작품 수정·삭제 → 0건, A 명의로 등록 → RLS 위반 에러, 비로그인 수정 → 0건

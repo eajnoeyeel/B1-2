@@ -1,7 +1,10 @@
+import { Lock } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import DataState from '@/components/DataState.jsx'
 import SeriesForm from '@/components/SeriesForm.jsx'
 import { Button } from '@/components/ui/button'
+import EmptyState from '@/components/EmptyState.jsx'
+import { useAuth } from '@/hooks/useAuth'
 import { useSeries } from '@/hooks/useSeries'
 import { useToast } from '@/hooks/useToast'
 import { toFormValues } from '@/lib/series'
@@ -10,6 +13,7 @@ import { updateSeries } from '@/lib/seriesApi'
 export default function SeriesEditPage() {
   const { id } = useParams()
   const { data: series, loading, error, reload } = useSeries(id)
+  const { user } = useAuth()
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -35,14 +39,22 @@ export default function SeriesEditPage() {
           </Button>
         }
       >
-        {() => (
-          <SeriesForm
-            initialValues={toFormValues(series)}
-            submitLabel="변경 사항 저장"
-            onSubmit={handleSubmit}
-            onCancel={() => navigate(`/series/${id}`)}
-          />
-        )}
+        {() =>
+          series.user_id !== user.id ? (
+            <EmptyState icon={Lock} message="내가 등록한 작품만 수정할 수 있어요.">
+              <Button asChild variant="outline">
+                <Link to={`/series/${id}`}>작품으로 돌아가기</Link>
+              </Button>
+            </EmptyState>
+          ) : (
+            <SeriesForm
+              initialValues={toFormValues(series)}
+              submitLabel="변경 사항 저장"
+              onSubmit={handleSubmit}
+              onCancel={() => navigate(`/series/${id}`)}
+            />
+          )
+        }
       </DataState>
     </div>
   )

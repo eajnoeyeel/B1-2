@@ -1,6 +1,8 @@
 -- 다음화(숏드라마 작품) 테이블. Supabase SQL Editor에서 그대로 실행하면 된다.
 create table if not exists public.series (
   id            bigint generated always as identity primary key,
+  -- 등록한 사용자. insert 때 로그인한 사용자 id가 자동으로 들어간다. (샘플 데이터는 null = 읽기 전용)
+  user_id       uuid references auth.users(id) on delete cascade default auth.uid(),
   title         text not null check (char_length(title) between 1 and 40),
   creator       text not null check (char_length(creator) between 1 and 30),
   genre         text not null check (genre in ('romance', 'fantasy', 'regression', 'thriller', 'horror', 'mystery', 'action', 'scifi', 'comedy')),
@@ -30,11 +32,24 @@ create trigger series_set_updated_at
   before update on public.series
   for each row execute function public.set_updated_at();
 
--- 로그인 없는 학습용 서비스라 anon 역할에 CRUD를 모두 허용한다.
--- (RLS를 끄는 대신 켜 두고 정책으로 명시 — 인증을 붙이면 이 정책만 바꾸면 된다.)
+create index if not exists series_user_id_idx on public.series(user_id);
+
+-- 권한: 조회는 누구나, 등록은 로그인한 사용자, 수정/삭제는 등록한 본인만
 alter table public.series enable row level security;
 
-drop policy if exists "series are public" on public.series;
-create policy "series are public" on public.series
-  for all to anon, authenticated
-  using (true) with check (true);
+drop policy if exists "series are readable by everyone" on public.series;
+create policy "series are readable by everyone" on public.series
+  for select to anon, authenticated using (true);
+
+drop policy if exists "users insert own series" on public.series;
+create policy "users insert own series" on public.series
+  for insert to authenticated with check ((select auth.uid()) = user_id);
+
+drop policy if exists "owners update series" on public.series;
+create policy "owners update series" on public.series
+  for update to authenticated
+  using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+drop policy if exists "owners delete series" on public.series;
+create policy "owners delete series" on public.series
+  for delete to authenticated using ((select auth.uid()) = user_id);
