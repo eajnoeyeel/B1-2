@@ -1,8 +1,12 @@
-export default function EmptyState({ message = '표시할 데이터가 없습니다.', children }) {
+import { Clapperboard } from 'lucide-react'
+
+export default function EmptyState({ message = '표시할 작품이 없어요.', description, children }) {
   return (
-    <div className="state">
-      <p className="state-title">{message}</p>
-      {children}
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-14 text-center">
+      <Clapperboard className="size-8 text-muted-foreground" aria-hidden="true" />
+      <p className="font-semibold">{message}</p>
+      {description && <p className="text-sm text-muted-foreground">{description}</p>}
+      {children && <div className="mt-2">{children}</div>}
     </div>
   )
 }

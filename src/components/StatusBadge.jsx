@@ -1,5 +1,8 @@
-import { STATUS_LABELS } from '../lib/book.js'
+import { Badge } from '@/components/ui/badge'
+import { STATUSES } from '@/lib/series'
+
+const VARIANT = { ongoing: 'default', completed: 'secondary', hiatus: 'outline' }
 
 export default function StatusBadge({ status }) {
-  return <span className={`badge badge-${status}`}>{STATUS_LABELS[status] ?? status}</span>
+  return <Badge variant={VARIANT[status] ?? 'outline'}>{STATUSES[status] ?? status}</Badge>
 }

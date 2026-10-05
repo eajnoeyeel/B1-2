@@ -1,8 +1,8 @@
 import { supabase } from './supabase.js'
 
-const TABLE = 'books'
+const TABLE = 'series'
 
-function books() {
+function table() {
   if (!supabase) {
     throw new Error('Supabase 환경변수(VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)가 설정되지 않았습니다.')
   }
@@ -16,24 +16,24 @@ function unwrap({ data, error }) {
   return data
 }
 
-export async function fetchBooks() {
-  return unwrap(await books().select('*').order('id', { ascending: false }))
+export async function fetchSeriesList() {
+  return unwrap(await table().select('*').order('id', { ascending: false }))
 }
 
 // 없는 id면 null을 돌려준다. 숫자가 아닌 id는 DB까지 보내지 않는다.
-export async function fetchBook(id) {
+export async function fetchSeries(id) {
   if (!/^\d+$/.test(id)) return null
-  return unwrap(await books().select('*').eq('id', id).maybeSingle())
+  return unwrap(await table().select('*').eq('id', id).maybeSingle())
 }
 
-export async function createBook(payload) {
-  return unwrap(await books().insert(payload).select().single())
+export async function createSeries(payload) {
+  return unwrap(await table().insert(payload).select().single())
 }
 
-export async function updateBook(id, payload) {
-  return unwrap(await books().update(payload).eq('id', id).select().single())
+export async function updateSeries(id, payload) {
+  return unwrap(await table().update(payload).eq('id', id).select().single())
 }
 
-export async function deleteBook(id) {
-  unwrap(await books().delete().eq('id', id))
+export async function deleteSeries(id) {
+  unwrap(await table().delete().eq('id', id))
 }
