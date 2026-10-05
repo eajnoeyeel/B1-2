@@ -3,7 +3,7 @@
 AI 도구로 만든 숏드라마를 "영상 한 편"이 아니라 **작품(Series) 단위**로 등록하고, 장르와 연재 상태로 찾아보는 React SPA입니다.
 Codyssey B1-2 과제("버튼 누르면 화면이 스르륵 바뀌는 요즘 웹사이트 만들기")의 결과물입니다.
 
-- **배포 URL:** <DEPLOY_URL>
+- **배포 URL:** <https://daumhwa.vercel.app>
 - **소스 코드:** <https://github.com/eajnoeyeel/B1-2>
 
 > 구상 중인 숏드라마 플랫폼(Creator → Universe → Series → Season → Episode)에서 핵심 단위인 **Series** 하나만 잘라 CRUD로 구현했습니다. 과제의 "단일 핵심 데이터" 조건에 맞추기 위해 영상 업로드, 회차(Episode), 로그인은 범위에서 뺐습니다.
